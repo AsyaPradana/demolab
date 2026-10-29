@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TobaccoLab — Manajemen Resep & Kalkulator Produksi</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            tobacco: { 50:'#fdf8f0',100:'#faefd9',200:'#f3d9a8',300:'#eabc6b',400:'#e0a03a',500:'#c9831e',600:'#a8651a',700:'#7d4b18',800:'#5c3614',900:'#3d2209' }
+          },
+          fontFamily: { sans: ['Inter','sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <style>
+    body{font-family:'Inter',sans-serif;background:#0f172a;color:#e2e8f0}
+    ::-webkit-scrollbar{width:5px;height:5px}
+    ::-webkit-scrollbar-track{background:#1e293b}
+    ::-webkit-scrollbar-thumb{background:#c9831e;border-radius:3px}
+    .glass{background:rgba(30,41,59,.85);backdrop-filter:blur(12px);border:1px solid rgba(201,131,30,.18)}
+    .card-hover{transition:transform .2s,box-shadow .2s}
+    .card-hover:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(201,131,30,.2)}
+    .nav-link{transition:color .15s,background .15s;border-left:3px solid transparent}
+    .nav-link.active{background:rgba(201,131,30,.15);color:#e0a03a;border-left-color:#e0a03a}
+    .input-field{background:#1e293b;border:1px solid #334155;color:#e2e8f0;transition:border-color .15s}
+    .input-field:focus{outline:none;border-color:#e0a03a;box-shadow:0 0 0 2px rgba(224,160,58,.15)}
+    .btn-gold{background:linear-gradient(135deg,#c9831e,#e0a03a);color:#0f172a;font-weight:600;transition:opacity .15s,transform .1s}
+    .btn-gold:hover{opacity:.9;transform:translateY(-1px)}
+    .btn-ghost{background:transparent;border:1px solid #334155;color:#94a3b8;transition:border-color .15s,color .15s}
+    .btn-ghost:hover{border-color:#e0a03a;color:#e0a03a}
+    .btn-danger{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#f87171;transition:background .15s}
+    .btn-danger:hover{background:rgba(239,68,68,.22)}
+    .tag-aktif{background:rgba(34,197,94,.12);color:#4ade80;border:1px solid rgba(34,197,94,.25)}
+    .tag-draft{background:rgba(148,163,184,.1);color:#94a3b8;border:1px solid rgba(148,163,184,.2)}
+    .sec-tmb{border-left:3px solid #4ade80}.sec-cas{border-left:3px solid #60a5fa}.sec-top{border-left:3px solid #c084fc}
+    .dot-tmb{background:#4ade80}.dot-cas{background:#60a5fa}.dot-top{background:#c084fc}
+    .animate-in{animation:fadeIn .22s ease}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+    .modal-bg{background:rgba(0,0,0,.72);backdrop-filter:blur(4px)}
+    .pct-bar{height:5px;border-radius:3px;transition:width .4s}
+    @media print{
+      body{background:#fff!important;color:#111!important}
+      .no-print{display:none!important}
+      .print-card{background:#fff!important;color:#111!important;border:1px solid #ccc!important}
+      table{border-collapse:collapse;width:100%}
+      th,td{border:1px solid #bbb;padding:5px 9px;font-size:11px}
+      thead{background:#f5e6cc!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    }
+  </style>
+</head>
+<body class="min-h-screen flex">
+
+<!-- ══════════════════════════════════════════════════════ SIDEBAR -->
+<aside id="sidebar" class="no-print w-60 min-h-screen glass flex flex-col fixed left-0 top-0 z-30 transition-transform duration-200">
+  <div class="px-5 py-5 border-b border-white/5">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg btn-gold flex items-center justify-center text-lg font-bold shadow">🍂</div>
+      <div>
+        <div class="font-bold text-sm text-tobacco-300 tracking-wide">TobaccoLab</div>
+        <div class="text-xs text-slate-500">Formula Manager</div>
+      </div>
+    </div>
+  </div>
+  <nav class="flex-1 py-4 px-2 space-y-1">
+    <button onclick="nav('dashboard')" class="nav-link active w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium flex items-center gap-3" id="nav-dashboard">
+      <span class="text-base">📊</span> Dashboard
+    </button>
+    <button onclick="nav('brands')" class="nav-link w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium flex items-center gap-3" id="nav-brands">
+      <span class="text-base">🏷️</span> Katalog Merk
+    </button>
+    <button onclick="nav('calc')" class="nav-link w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium flex items-center gap-3" id="nav-calc">
+      <span class="text-base">🧮</span> Kalkulator
+    </button>
+  </nav>
+  <div class="px-4 py-4 border-t border-white/5 text-xs text-slate-600 leading-relaxed">
+    <div class="font-medium text-slate-500 mb-1">Basis Perhitungan</div>
+    Semua dosis resep mengacu pada <strong class="text-tobacco-400">100 gram tembakau</strong>.
+  </div>
+</aside>
+
+<!-- ══════════════════════════════════════════════════════ MAIN -->
+<main class="ml-60 flex-1 min-h-screen">
+
+<!-- TOP BAR -->
+<header class="no-print glass sticky top-0 z-20 px-8 py-3.5 flex items-center justify-between border-b border-white/5">
+  <div id="page-title" class="font-semibold text-tobacco-300 text-base">Dashboard</div>
+  <div class="flex items-center gap-3">
+    <input id="global-search" oninput="globalSearch(this.value)" placeholder="Cari merk…"
+      class="input-field text-sm rounded-lg px-3 py-1.5 w-48 placeholder-slate-600"/>
+    <button onclick="openAddBrand()" class="btn-gold px-4 py-1.5 rounded-lg text-sm flex items-center gap-1.5">
+      <span>+</span> Tambah Merk
+    </button>
+  </div>
+</header>
+
+<div class="px-8 py-6">
+
+<!-- ══════════════════════════════════════════════ PAGE: DASHBOARD -->
+<section id="page-dashboard" class="animate-in">
+  <!-- Stat cards -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div class="glass rounded-xl p-4 card-hover">
+      <div class="text-xs text-slate-500 mb-1">Total Merk</div>
+      <div id="stat-brands" class="text-3xl font-bold text-tobacco-400">0</div>
+    </div>
+    <div class="glass rounded-xl p-4 card-hover">
+      <div class="text-xs text-slate-500 mb-1">Merk Aktif</div>
+      <div id="stat-aktif" class="text-3xl font-bold text-green-400">0</div>
+    </div>
+    <div class="glass rounded-xl p-4 card-hover">
+      <div class="text-xs text-slate-500 mb-1">Total Komponen</div>
+      <div id="stat-comp" class="text-3xl font-bold text-blue-400">0</div>
+    </div>
+    <div class="glass rounded-xl p-4 card-hover">
+      <div class="text-xs text-slate-500 mb-1">Draft</div>
+      <div id="stat-draft" class="text-3xl font-bold text-slate-400">0</div>
+    </div>
+  </div>
+
+  <!-- Brand grid -->
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="font-semibold text-slate-300">Semua Merk Rokok</h2>
+    <div class="flex gap-2">
+      <button onclick="filterBrands('all')"    id="flt-all"   class="btn-ghost text-xs px-3 py-1 rounded-lg active-filter">Semua</button>
+      <button onclick="filterBrands('Aktif')"  id="flt-aktif" class="btn-ghost text-xs px-3 py-1 rounded-lg">Aktif</button>
+      <button onclick="filterBrands('Draft')"  id="flt-draft" class="btn-ghost text-xs px-3 py-1 rounded-lg">Draft</button>
+    </div>
+  </div>
+  <div id="brand-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+</section>
+
+<!-- ══════════════════════════════════════════════ PAGE: BRANDS (detail) -->
+<section id="page-brands" class="hidden animate-in">
+  <div id="brand-detail"></div>
+</section>
+
+<!-- ══════════════════════════════════════════════ PAGE: CALCULATOR -->
+<section id="page-calc" class="hidden animate-in">
+  <div class="max-w-4xl mx-auto">
+    <h2 class="font-bold text-xl text-tobacco-300 mb-6">🧮 Kalkulator Dosis Produksi</h2>
+
+    <!-- Input panel -->
+    <div class="glass rounded-xl p-6 mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1.5">Merk Rokok</label>
+          <select id="calc-brand" onchange="calcUpdate()" class="input-field w-full rounded-lg px-3 py-2 text-sm">
+            <option value="">-- Pilih Merk --</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1.5">Target Produksi</label>
+          <input id="calc-target" type="number" value="500" min="0" oninput="calcUpdate()"
+            class="input-field w-full rounded-lg px-3 py-2 text-sm"/>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1.5">Satuan</label>
+          <select id="calc-unit" onchange="calcUpdate()" class="input-field w-full rounded-lg px-3 py-2 text-sm">
+            <option value="kg">kg</option>
+            <option value="gram">gram</option>
+            <option value="ton">ton</option>
+          </select>
+        </div>
+      </div>
+      <div id="calc-brand-info" class="mt-4 hidden text-sm text-slate-400 flex items-center gap-2"></div>
+    </div>
+
+    <!-- Result -->
+    <div id="calc-result" class="hidden animate-in">
+      <!-- header -->
+      <div class="flex items-center justify-between mb-4 no-print">
+        <h3 id="calc-result-title" class="font-semibold text-tobacco-300"></h3>
+        <div class="flex gap-2">
+          <button onclick="exportCalcExcel()" class="btn-ghost text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+            📊 Export Excel
+          </button>
+          <button onclick="window.print()" class="btn-ghost text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+            🖨️ Cetak PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- Print header -->
+      <div class="print-only mb-6" style="display:none">
+        <h1 id="print-title" style="font-size:16px;font-weight:700;margin-bottom:4px"></h1>
+        <p id="print-sub" style="font-size:11px;color:#666"></p>
+        <hr style="margin:8px 0"/>
+      </div>
+
+      <div id="calc-tables" class="space-y-5 print-card"></div>
+
+      <!-- Summary -->
+      <div id="calc-summary" class="glass rounded-xl p-5 mt-5 print-card"></div>
+    </div>
+
+    <div id="calc-empty" class="glass rounded-xl p-10 text-center text-slate-500 text-sm">
+      Pilih merk rokok dan masukkan target produksi untuk melihat hasil kalkulasi.
+    </div>
+  </div>
+</section>
+
+</div><!-- /px-8 -->
+</main>
+
+<!-- ══════════════════════════════════════════════════════ MODALS -->
+
+<!-- Modal: Add/Edit Brand -->
+<div id="modal-brand" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-bg">
+  <div class="glass rounded-2xl p-6 w-full max-w-md animate-in">
+    <div class="flex items-center justify-between mb-5">
+      <h3 id="modal-brand-title" class="font-bold text-tobacco-300 text-lg">Tambah Merk Baru</h3>
+      <button onclick="closeModal('modal-brand')" class="text-slate-500 hover:text-white text-xl leading-none">&times;</button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Nama Merk <span class="text-red-400">*</span></label>
+        <input id="brand-name" class="input-field w-full rounded-lg px-3 py-2 text-sm" placeholder="contoh: Bold Classic"/>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Kategori</label>
+        <input id="brand-cat" class="input-field w-full rounded-lg px-3 py-2 text-sm" placeholder="contoh: Mild, Full Flavor, Menthol"/>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Deskripsi</label>
+        <textarea id="brand-desc" rows="2" class="input-field w-full rounded-lg px-3 py-2 text-sm resize-none" placeholder="Deskripsi singkat resep ini…"></textarea>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Status</label>
+        <select id="brand-status" class="input-field w-full rounded-lg px-3 py-2 text-sm">
+          <option value="Draft">Draft</option>
+          <option value="Aktif">Aktif</option>
+        </select>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="saveBrand()" class="btn-gold flex-1 py-2 rounded-lg text-sm">Simpan</button>
+      <button onclick="closeModal('modal-brand')" class="btn-ghost flex-1 py-2 rounded-lg text-sm">Batal</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add/Edit Ingredient -->
+<div id="modal-ing" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-bg">
+  <div class="glass rounded-2xl p-6 w-full max-w-md animate-in">
+    <div class="flex items-center justify-between mb-5">
+      <h3 id="modal-ing-title" class="font-bold text-tobacco-300 text-lg">Tambah Komponen</h3>
+      <button onclick="closeModal('modal-ing')" class="text-slate-500 hover:text-white text-xl leading-none">&times;</button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Kategori</label>
+        <select id="ing-cat" onchange="ingCatChange()" class="input-field w-full rounded-lg px-3 py-2 text-sm">
+          <option value="tembakau">🍃 Tembakau</option>
+          <option value="casing">🧪 Casing</option>
+          <option value="top">🌿 Top Flavour</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Nama Bahan <span class="text-red-400">*</span></label>
+        <input id="ing-name" class="input-field w-full rounded-lg px-3 py-2 text-sm" placeholder="contoh: Virginia Light"/>
+      </div>
+      <div id="ing-dose-wrap">
+        <label id="ing-dose-label" class="block text-xs text-slate-400 mb-1">Dosis (gram per 100g tembakau)</label>
+        <div class="flex gap-2">
+          <input id="ing-dose" type="number" step="0.001" min="0" class="input-field flex-1 rounded-lg px-3 py-2 text-sm" placeholder="0.000"/>
+          <select id="ing-unit" class="input-field rounded-lg px-3 py-2 text-sm w-24">
+            <option value="gram">gram</option>
+            <option value="ml">ml</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Keterangan</label>
+        <input id="ing-note" class="input-field w-full rounded-lg px-3 py-2 text-sm" placeholder="opsional"/>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="saveIngredient()" class="btn-gold flex-1 py-2 rounded-lg text-sm">Simpan</button>
+      <button onclick="closeModal('modal-ing')" class="btn-ghost flex-1 py-2 rounded-lg text-sm">Batal</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Confirm Delete -->
+<div id="modal-confirm" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-bg">
+  <div class="glass rounded-2xl p-6 w-full max-w-sm animate-in text-center">
+    <div class="text-4xl mb-3">⚠️</div>
+    <h3 class="font-bold text-white text-base mb-2">Konfirmasi Hapus</h3>
+    <p id="confirm-msg" class="text-sm text-slate-400 mb-6">Yakin ingin menghapus item ini?</p>
+    <div class="flex gap-3">
+      <button id="confirm-yes" class="flex-1 py-2 rounded-lg text-sm btn-danger font-semibold">Hapus</button>
+      <button onclick="closeModal('modal-confirm')" class="flex-1 py-2 rounded-lg text-sm btn-ghost">Batal</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let DB = JSON.parse(localStorage.getItem('tobaccolab') || 'null') || {
+  brands: [
+    {
+      id:'b1', name:'Bold Classic', category:'Full Flavor', status:'Aktif',
+      desc:'Rokok kretek full body dengan karakter tembakau kuat dan casing klasik.',
+      createdAt:'2025-01-10',
+      recipe:{
+        tembakau:[
+          {id:'t1',name:'Lombok Campur', dose:900, unit:'gram', note:'Rajangan kasar'},
+          {id:'t2',name:'Maesan',        dose:700, unit:'gram', note:'Rajangan halus'},
+          {id:'t3',name:'Bojonegoro',    dose:500, unit:'gram', note:'Virginia lokal'},
+        ],
+        casing:[
+          {id:'c1',name:'Spicy Body',       dose:1.000, unit:'gram', note:'Bahan utama'},
+          {id:'c2',name:'Tabac Sweet',      dose:0.500, unit:'gram', note:'Pemanis aroma'},
+          {id:'c3',name:'Spicy Herb Extra', dose:0.109, unit:'gram', note:'Penguat herbal'},
+          {id:'c4',name:'Tabac Srintil',    dose:0.015, unit:'gram', note:'Aroma srintil'},
+        ],
+        top:[
+          {id:'tp1',name:'Tobacco Flavour', dose:0.120, unit:'gram', note:'Top utama'},
+          {id:'tp2',name:'Virginia Smooky', dose:0.100, unit:'gram', note:'Aroma smoky'},
+        ]
+      }
+    },
+    {
+      id:'b2', name:'Matcha Mild', category:'Mild', status:'Aktif',
+      desc:'Varian mild dengan karakter herbal matcha yang ringan dan segar.',
+      createdAt:'2025-02-05',
+      recipe:{
+        tembakau:[
+          {id:'t4',name:'Maesan',     dose:1000, unit:'gram', note:'Halus'},
+          {id:'t5',name:'Bojonegoro', dose:600,  unit:'gram', note:'Virginia'},
+          {id:'t6',name:'Temanggung', dose:400,  unit:'gram', note:'Pegunungan'},
+        ],
+        casing:[
+          {id:'c5',name:'Matcha Extract',  dose:0.800, unit:'gram', note:'Premium'},
+          {id:'c6',name:'Tabac Sweet',     dose:0.400, unit:'gram', note:'Pemanis'},
+          {id:'c7',name:'Green Herb Base', dose:0.250, unit:'gram', note:'Herbal'},
+          {id:'c8',name:'Tabac Srintil',   dose:0.020, unit:'gram', note:'Srintil'},
+        ],
+        top:[
+          {id:'tp3',name:'Matcha Top Note',   dose:0.150, unit:'gram', note:'Aroma matcha'},
+          {id:'tp4',name:'Fresh Green Smoke', dose:0.080, unit:'gram', note:'Segar'},
+          {id:'tp5',name:'Virginia Light',    dose:0.050, unit:'gram', note:'Ringan'},
+        ]
+      }
+    },
+    {
+      id:'b3', name:'Silver Menthol', category:'Menthol', status:'Draft',
+      desc:'Prototype rokok menthol dengan sensasi dingin dan body tembakau ringan.',
+      createdAt:'2025-03-15',
+      recipe:{tembakau:[],casing:[],top:[]}
+    }
+  ]
+};
+function save(){ localStorage.setItem('tobaccolab', JSON.stringify(DB)); }
+
+let currentPage   = 'dashboard';
+let currentBrandId= null;
+let editingBrandId= null;
+let editingIngId  = null;
+let editingIngCat = null;
+let filterStatus  = 'all';
+let searchQuery   = '';
+let idCounter     = Date.now();
+function uid(){ return 'id'+(++idCounter); }
+
+// ═══════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+function nav(page, brandId){
+  ['dashboard','brands','calc'].forEach(p=>{
+    document.getElementById('page-'+p).classList.add('hidden');
+    document.getElementById('nav-'+p)?.classList.remove('active');
+  });
+  document.getElementById('page-'+page).classList.remove('hidden');
+  document.getElementById('nav-'+page)?.classList.add('active');
+  currentPage = page;
+  const titles = {dashboard:'Dashboard', brands:'Manajemen Resep', calc:'Kalkulator Produksi'};
+  document.getElementById('page-title').textContent = titles[page]||page;
+  if(page==='dashboard'){ renderDashboard(); }
+  if(page==='brands'){ currentBrandId=brandId||currentBrandId; renderBrandDetail(); }
+  if(page==='calc'){ renderCalc(); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════════
+function renderDashboard(){
+  const brands = DB.brands;
+  const aktif  = brands.filter(b=>b.status==='Aktif').length;
+  const draft  = brands.filter(b=>b.status==='Draft').length;
+  const comps  = brands.reduce((s,b)=>s+b.recipe.tembakau.length+b.recipe.casing.length+b.recipe.top.length,0);
+  document.getElementById('stat-brands').textContent = brands.length;
+  document.getElementById('stat-aktif').textContent  = aktif;
+  document.getElementById('stat-comp').textContent   = comps;
+  document.getElementById('stat-draft').textContent  = draft;
+  renderBrandGrid();
+}
+
+function renderBrandGrid(){
+  let list = DB.brands;
+  if(filterStatus!=='all') list=list.filter(b=>b.status===filterStatus);
+  if(searchQuery) list=list.filter(b=>
+    b.name.toLowerCase().includes(searchQuery.toLowerCase())||
+    (b.category||'').toLowerCase().includes(searchQuery.toLowerCase()));
+  const grid = document.getElementById('brand-grid');
+  if(!list.length){
+    grid.innerHTML=`<div class="col-span-3 glass rounded-xl p-10 text-center text-slate-500 text-sm">Tidak ada merk ditemukan.</div>`;
+    return;
+  }
+  grid.innerHTML = list.map(b=>{
+    const nc=b.recipe.casing.length, nt=b.recipe.top.length, ntm=b.recipe.tembakau.length;
+    return `
+    <div class="glass rounded-xl p-5 card-hover cursor-pointer" onclick="openBrand('${b.id}')">
+      <div class="flex items-start justify-between mb-3">
+        <div>
+          <div class="font-semibold text-white text-sm mb-0.5">${esc(b.name)}</div>
+          <div class="text-xs text-slate-500">${esc(b.category||'—')}</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs px-2 py-0.5 rounded-full font-medium ${b.status==='Aktif'?'tag-aktif':'tag-draft'}">${b.status}</span>
+          <button onclick="event.stopPropagation();openEditBrand('${b.id}')" class="text-slate-600 hover:text-tobacco-400 text-sm" title="Edit">✏️</button>
+          <button onclick="event.stopPropagation();confirmDelete('brand','${b.id}','${esc(b.name)}')" class="text-slate-600 hover:text-red-400 text-sm" title="Hapus">🗑️</button>
+        </div>
+      </div>
+      <p class="text-xs text-slate-500 mb-4 line-clamp-2">${esc(b.desc||'Belum ada deskripsi.')}</p>
+      <div class="flex gap-3 text-xs text-slate-500 mb-4">
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full dot-tmb inline-block"></span>${ntm} tembakau</span>
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full dot-cas inline-block"></span>${nc} casing</span>
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full dot-top inline-block"></span>${nt} top</span>
+      </div>
+      <button onclick="event.stopPropagation();nav('calc');setTimeout(()=>{document.getElementById('calc-brand').value='${b.id}';calcUpdate();},50)"
+        class="btn-ghost w-full py-1.5 rounded-lg text-xs">Hitung Produksi →</button>
+    </div>`;
+  }).join('');
+}
+
+function filterBrands(status){
+  filterStatus=status;
+  ['all','aktif','draft'].forEach(s=>document.getElementById('flt-'+s)?.classList.remove('border-tobacco-400','text-tobacco-400'));
+  document.getElementById('flt-'+status.toLowerCase())?.classList.add('border-tobacco-400','text-tobacco-400');
+  renderBrandGrid();
+}
+function globalSearch(q){ searchQuery=q; if(currentPage==='dashboard') renderBrandGrid(); }
+
+// ═══════════════════════════════════════════════════════════════
+// BRAND DETAIL / RESEP
+// ═══════════════════════════════════════════════════════════════
+function openBrand(id){ nav('brands', id); }
+
+function renderBrandDetail(){
+  const b = DB.brands.find(x=>x.id===currentBrandId);
+  if(!b){
+    document.getElementById('brand-detail').innerHTML=`
+      <div class="glass rounded-xl p-10 text-center">
+        <div class="text-4xl mb-3">🏷️</div>
+        <div class="text-slate-400 text-sm mb-4">Pilih merk dari katalog untuk melihat dan mengelola resep.</div>
+        <button onclick="nav('dashboard')" class="btn-gold px-5 py-2 rounded-lg text-sm">Lihat Katalog</button>
+      </div>`;
+    return;
+  }
+  const totalTmb = b.recipe.tembakau.reduce((s,i)=>s+i.dose,0)||1;
+  document.getElementById('brand-detail').innerHTML = `
+  <div class="flex items-center gap-3 mb-6">
+    <button onclick="nav('dashboard')" class="btn-ghost px-3 py-1.5 rounded-lg text-xs">← Kembali</button>
+    <div class="flex-1">
+      <div class="flex items-center gap-3">
+        <h2 class="font-bold text-xl text-white">${esc(b.name)}</h2>
+        <span class="text-xs px-2 py-0.5 rounded-full font-medium ${b.status==='Aktif'?'tag-aktif':'tag-draft'}">${b.status}</span>
+      </div>
+      <div class="text-xs text-slate-500 mt-0.5">${esc(b.category||'')}${b.createdAt?' · Dibuat '+b.createdAt:''}</div>
+    </div>
+    <button onclick="openEditBrand('${b.id}')" class="btn-ghost px-3 py-1.5 rounded-lg text-xs">✏️ Edit Info</button>
+    <button onclick="nav('calc');setTimeout(()=>{document.getElementById('calc-brand').value='${b.id}';calcUpdate();},50)"
+      class="btn-gold px-4 py-1.5 rounded-lg text-xs">🧮 Hitung Produksi</button>
+  </div>
+  ${b.desc?`<p class="text-sm text-slate-400 mb-6 glass rounded-lg px-4 py-3">${esc(b.desc)}</p>`:''}
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    ${recipeSection(b,'tembakau','🍃 Tembakau','sec-tmb','Blending jenis tembakau — total = berat batch standar','#4ade80',totalTmb)}
+    ${recipeSection(b,'casing','🧪 Casing','sec-cas','Dosis per 100 gram tembakau','#60a5fa',null)}
+    ${recipeSection(b,'top','🌿 Top Flavour','sec-top','Dosis per 100 gram tembakau','#c084fc',null)}
+  </div>`;
+}
+
+function recipeSection(b,cat,title,secClass,subtitle,color,totalTmb){
+  const items=b.recipe[cat];
+  const total=items.reduce((s,i)=>s+i.dose,0);
+  const rows=items.map(it=>{
+    const pct=totalTmb?(it.dose/totalTmb*100).toFixed(1):null;
+    return `
+    <div class="flex items-center gap-2 py-2 border-b border-white/5 group">
+      <div class="flex-1 min-w-0">
+        <div class="text-sm text-white font-medium truncate">${esc(it.name)}</div>
+        ${it.note?`<div class="text-xs text-slate-500 truncate">${esc(it.note)}</div>`:''}
+        ${pct!==null?`<div class="mt-1.5 bg-slate-800 rounded-full overflow-hidden" style="height:4px"><div class="pct-bar" style="width:${Math.min(parseFloat(pct),100)}%;background:${color}"></div></div>`:''}
+      </div>
+      <div class="text-right shrink-0">
+        <div class="text-sm font-semibold text-tobacco-300">${fmt(it.dose)} ${it.unit}</div>
+        ${pct!==null?`<div class="text-xs text-slate-500">${pct}%</div>`:''}
+      </div>
+      <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+        <button onclick="openEditIngredient('${b.id}','${cat}','${it.id}')" class="text-slate-500 hover:text-tobacco-400 text-xs px-1">✏️</button>
+        <button onclick="confirmDelete('ing','${b.id}|${cat}|${it.id}','${esc(it.name)}')" class="text-slate-500 hover:text-red-400 text-xs px-1">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+  return `
+  <div class="glass rounded-xl p-5 ${secClass}">
+    <div class="flex items-center justify-between mb-1">
+      <h3 class="font-semibold text-sm text-white">${title}</h3>
+      <button onclick="openAddIngredient('${b.id}','${cat}')" class="btn-gold text-xs px-2.5 py-1 rounded-lg">+ Tambah</button>
+    </div>
+    <div class="text-xs text-slate-500 mb-3">${subtitle}</div>
+    ${items.length?rows:`<div class="text-xs text-slate-600 py-6 text-center">Belum ada komponen. Klik + Tambah.</div>`}
+    <div class="mt-3 pt-3 border-t border-white/5 flex justify-between text-xs">
+      <span class="text-slate-500">Total</span>
+      <span class="font-bold" style="color:${color}">${fmt(total)} ${items[0]?.unit||'gram'}</span>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODALS — BRAND
+// ═══════════════════════════════════════════════════════════════
+function openAddBrand(){
+  editingBrandId=null;
+  document.getElementById('modal-brand-title').textContent='Tambah Merk Baru';
+  ['brand-name','brand-cat','brand-desc'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('brand-status').value='Draft';
+  document.getElementById('modal-brand').classList.remove('hidden');
+}
+function openEditBrand(id){
+  const b=DB.brands.find(x=>x.id===id); if(!b)return;
+  editingBrandId=id;
+  document.getElementById('modal-brand-title').textContent='Edit Merk';
+  document.getElementById('brand-name').value=b.name;
+  document.getElementById('brand-cat').value=b.category||'';
+  document.getElementById('brand-desc').value=b.desc||'';
+  document.getElementById('brand-status').value=b.status;
+  document.getElementById('modal-brand').classList.remove('hidden');
+}
+function saveBrand(){
+  const name=document.getElementById('brand-name').value.trim();
+  if(!name){alert('Nama merk wajib diisi.');return;}
+  if(editingBrandId){
+    const b=DB.brands.find(x=>x.id===editingBrandId);
+    Object.assign(b,{name,category:document.getElementById('brand-cat').value.trim(),
+      desc:document.getElementById('brand-desc').value.trim(),
+      status:document.getElementById('brand-status').value});
+  } else {
+    DB.brands.push({id:uid(),name,
+      category:document.getElementById('brand-cat').value.trim(),
+      desc:document.getElementById('brand-desc').value.trim(),
+      status:document.getElementById('brand-status').value,
+      createdAt:new Date().toISOString().slice(0,10),
+      recipe:{tembakau:[],casing:[],top:[]}});
+  }
+  save(); closeModal('modal-brand');
+  if(currentPage==='dashboard') renderDashboard();
+  if(currentPage==='brands') renderBrandDetail();
+  populateCalcBrands();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODALS — INGREDIENT
+// ═══════════════════════════════════════════════════════════════
+function openAddIngredient(brandId,cat){
+  editingBrandId=brandId; editingIngId=null; editingIngCat=cat;
+  document.getElementById('modal-ing-title').textContent='Tambah Komponen';
+  document.getElementById('ing-cat').value=cat;
+  document.getElementById('ing-name').value='';
+  document.getElementById('ing-dose').value='';
+  document.getElementById('ing-unit').value='gram';
+  document.getElementById('ing-note').value='';
+  ingCatChange();
+  document.getElementById('modal-ing').classList.remove('hidden');
+}
+function openEditIngredient(brandId,cat,ingId){
+  const b=DB.brands.find(x=>x.id===brandId);
+  const it=b?.recipe[cat]?.find(x=>x.id===ingId); if(!it)return;
+  editingBrandId=brandId; editingIngId=ingId; editingIngCat=cat;
+  document.getElementById('modal-ing-title').textContent='Edit Komponen';
+  document.getElementById('ing-cat').value=cat;
+  document.getElementById('ing-name').value=it.name;
+  document.getElementById('ing-dose').value=it.dose;
+  document.getElementById('ing-unit').value=it.unit||'gram';
+  document.getElementById('ing-note').value=it.note||'';
+  ingCatChange();
+  document.getElementById('modal-ing').classList.remove('hidden');
+}
+function ingCatChange(){
+  const cat=document.getElementById('ing-cat').value;
+  document.getElementById('ing-dose-label').textContent=
+    cat==='tembakau'?'Berat (gram) — proporsi blending':'Dosis per 100 gram tembakau';
+  if(cat==='tembakau') document.getElementById('ing-unit').value='gram';
+}
+function saveIngredient(){
+  const name=document.getElementById('ing-name').value.trim();
+  const dose=parseFloat(document.getElementById('ing-dose').value)||0;
+  const unit=document.getElementById('ing-unit').value;
+  const note=document.getElementById('ing-note').value.trim();
+  const cat =document.getElementById('ing-cat').value;
+  if(!name){alert('Nama bahan wajib diisi.');return;}
+  const b=DB.brands.find(x=>x.id===editingBrandId); if(!b)return;
+  if(editingIngId){
+    const it=b.recipe[cat]?.find(x=>x.id===editingIngId);
+    if(it) Object.assign(it,{name,dose,unit,note});
+  } else {
+    b.recipe[cat].push({id:uid(),name,dose,unit,note});
+  }
+  save(); closeModal('modal-ing');
+  if(currentPage==='brands') renderBrandDetail();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONFIRM DELETE
+// ═══════════════════════════════════════════════════════════════
+function confirmDelete(type,payload,label){
+  document.getElementById('confirm-msg').textContent=`Hapus "${label}"?`;
+  document.getElementById('confirm-yes').onclick=()=>{
+    if(type==='brand'){
+      DB.brands=DB.brands.filter(b=>b.id!==payload);
+      if(currentBrandId===payload) currentBrandId=null;
+    } else {
+      const [bId,cat,iId]=payload.split('|');
+      const b=DB.brands.find(x=>x.id===bId);
+      if(b) b.recipe[cat]=b.recipe[cat].filter(x=>x.id!==iId);
+    }
+    save(); closeModal('modal-confirm');
+    if(currentPage==='dashboard') renderDashboard();
+    if(currentPage==='brands') renderBrandDetail();
+    populateCalcBrands();
+  };
+  document.getElementById('modal-confirm').classList.remove('hidden');
+}
+function closeModal(id){ document.getElementById(id).classList.add('hidden'); }
+
+// ═══════════════════════════════════════════════════════════════
+// CALCULATOR
+// ═══════════════════════════════════════════════════════════════
+function renderCalc(){ populateCalcBrands(); calcUpdate(); }
+
+function populateCalcBrands(){
+  const sel=document.getElementById('calc-brand'); if(!sel)return;
+  const cur=sel.value;
+  sel.innerHTML='<option value="">-- Pilih Merk --</option>'+
+    DB.brands.map(b=>`<option value="${b.id}"${b.id===cur?' selected':''}>${esc(b.name)} (${b.status})</option>`).join('');
+  sel.value=cur;
+}
+
+function calcUpdate(){
+  const bId   =document.getElementById('calc-brand').value;
+  const target=parseFloat(document.getElementById('calc-target').value)||0;
+  const unit  =document.getElementById('calc-unit').value;
+  const result=document.getElementById('calc-result');
+  const empty =document.getElementById('calc-empty');
+  if(!bId||!target){ result.classList.add('hidden'); empty.classList.remove('hidden'); return; }
+  const b=DB.brands.find(x=>x.id===bId);
+  if(!b){ result.classList.add('hidden'); empty.classList.remove('hidden'); return; }
+
+  const targetGram=unit==='kg'?target*1000:unit==='ton'?target*1e6:target;
+  const totalTmb  =b.recipe.tembakau.reduce((s,i)=>s+i.dose,0)||1;
+
+  const info=document.getElementById('calc-brand-info');
+  info.className='mt-4 text-sm text-slate-400 flex items-center gap-2';
+  info.innerHTML=`<span class="text-xs px-2 py-0.5 rounded-full ${b.status==='Aktif'?'tag-aktif':'tag-draft'}">${b.status}</span>
+    <span>${esc(b.name)}</span><span class="text-slate-600">·</span>
+    <span>Basis resep: ${fmt(totalTmb)} gram tembakau</span>`;
+
+  document.getElementById('calc-result-title').textContent=
+    `Hasil: ${esc(b.name)} — Target ${fmtNum(target)} ${unit}`;
+  document.getElementById('print-title').textContent=`Lembar Kerja Produksi: ${b.name}`;
+  document.getElementById('print-sub').textContent=
+    `Target: ${fmtNum(target)} ${unit} tembakau | ${new Date().toLocaleDateString('id-ID',{dateStyle:'long'})}`;
+
+  const tmbRows=b.recipe.tembakau.map(it=>({
+    name:it.name, dose:it.dose, unit:it.unit,
+    pct:(it.dose/totalTmb*100).toFixed(1),
+    result:targetGram*(it.dose/totalTmb), note:it.note
+  }));
+  const casRows=b.recipe.casing.map(it=>({
+    name:it.name, dose:it.dose, unit:it.unit, pct:null,
+    result:(targetGram/100)*it.dose, note:it.note
+  }));
+  const topRows=b.recipe.top.map(it=>({
+    name:it.name, dose:it.dose, unit:it.unit, pct:null,
+    result:(targetGram/100)*it.dose, note:it.note
+  }));
+
+  document.getElementById('calc-tables').innerHTML=
+    calcTable('🍃 Tembakau (Blending)','sec-tmb','#4ade80',tmbRows,'Berat',`${fmt(targetGram)} gram`,true)+
+    calcTable('🧪 Casing','sec-cas','#60a5fa',casRows,'Dosis/100g',
+      b.recipe.casing.length?`${fmt(b.recipe.casing.reduce((s,i)=>s+i.dose,0))} gram/100g`:'—',false)+
+    calcTable('🌿 Top Flavour','sec-top','#c084fc',topRows,'Dosis/100g',
+      b.recipe.top.length?`${fmt(b.recipe.top.reduce((s,i)=>s+i.dose,0))} gram/100g`:'—',false);
+
+  const totCas=b.recipe.casing.reduce((s,i)=>s+(targetGram/100)*i.dose,0);
+  const totTop=b.recipe.top.reduce((s,i)=>s+(targetGram/100)*i.dose,0);
+  document.getElementById('calc-summary').innerHTML=`
+    <h4 class="font-semibold text-tobacco-300 mb-4 text-sm">📋 Ringkasan Total Bahan</h4>
+    <div class="grid grid-cols-3 gap-4 text-center">
+      <div class="glass rounded-lg p-4">
+        <div class="text-xs text-slate-500 mb-1">Total Tembakau</div>
+        <div class="text-xl font-bold text-green-400">${fmtNum((targetGram/1000).toFixed(3))}</div>
+        <div class="text-xs text-slate-500">kg</div>
+      </div>
+      <div class="glass rounded-lg p-4">
+        <div class="text-xs text-slate-500 mb-1">Total Casing</div>
+        <div class="text-xl font-bold text-blue-400">${fmtNum(totCas.toFixed(3))}</div>
+        <div class="text-xs text-slate-500">gram</div>
+      </div>
+      <div class="glass rounded-lg p-4">
+        <div class="text-xs text-slate-500 mb-1">Total Top Flavour</div>
+        <div class="text-xl font-bold text-purple-400">${fmtNum(totTop.toFixed(3))}</div>
+        <div class="text-xs text-slate-500">gram</div>
+      </div>
+    </div>
+    <div class="mt-4 text-xs text-slate-500 text-center">
+      Basis: 100 gram tembakau &nbsp;·&nbsp; Target: ${fmtNum(target)} ${unit} = ${fmtNum(targetGram)} gram
+    </div>`;
+
+  result.classList.remove('hidden'); empty.classList.add('hidden');
+}
+
+function calcTable(title,secClass,color,rows,doseLabel,totalDose,isPct){
+  if(!rows.length) return `
+    <div class="glass rounded-xl p-5 ${secClass}">
+      <div class="font-semibold text-sm text-white mb-3">${title}</div>
+      <div class="text-xs text-slate-500 text-center py-4">Belum ada komponen resep.</div>
+    </div>`;
+  const total=rows.reduce((s,r)=>s+r.result,0);
+  const tRows=rows.map((r,i)=>`
+    <tr class="${i%2===0?'bg-white/[.02]':''}">
+      <td class="px-3 py-2.5 text-sm text-white font-medium">${esc(r.name)}</td>
+      <td class="px-3 py-2.5 text-sm text-slate-400 text-center">${fmt(r.dose)} ${r.unit}</td>
+      ${isPct?`<td class="px-3 py-2.5 text-sm text-slate-400 text-center">${r.pct}%</td>`:''}
+      <td class="px-3 py-2.5 text-sm font-bold text-right" style="color:${color}">${fmtNum(r.result.toFixed(3))} ${r.unit}</td>
+      <td class="px-3 py-2.5 text-xs text-slate-500">${esc(r.note||'')}</td>
+    </tr>`).join('');
+  return `
+  <div class="glass rounded-xl overflow-hidden ${secClass}">
+    <div class="flex items-center justify-between px-5 py-3 border-b border-white/5">
+      <span class="font-semibold text-sm text-white">${title}</span>
+      <span class="text-xs text-slate-500">${doseLabel}: <span class="font-medium text-slate-400">${totalDose}</span></span>
+    </div>
+    <div class="overflow-x-auto">
+    <table class="w-full">
+      <thead><tr class="text-xs text-slate-500 border-b border-white/5">
+        <th class="px-3 py-2 text-left font-medium">Nama Bahan</th>
+        <th class="px-3 py-2 text-center font-medium">Dosis Resep</th>
+        ${isPct?'<th class="px-3 py-2 text-center font-medium">Proporsi</th>':''}
+        <th class="px-3 py-2 text-right font-medium">Kebutuhan Produksi</th>
+        <th class="px-3 py-2 text-left font-medium">Keterangan</th>
+      </tr></thead>
+      <tbody>${tRows}</tbody>
+      <tfoot><tr class="border-t border-white/10 bg-white/[.03]">
+        <td colspan="${isPct?2:2}" class="px-3 py-2.5 text-xs font-semibold text-slate-400">TOTAL</td>
+        ${isPct?'<td></td>':''}
+        <td class="px-3 py-2.5 text-sm font-bold text-right" style="color:${color}">${fmtNum(total.toFixed(3))} ${rows[0]?.unit||'gram'}</td>
+        <td></td>
+      </tr></tfoot>
+    </table></div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EXPORT EXCEL
+// ═══════════════════════════════════════════════════════════════
+function exportCalcExcel(){
+  const bId   =document.getElementById('calc-brand').value;
+  const target=parseFloat(document.getElementById('calc-target').value)||0;
+  const unit  =document.getElementById('calc-unit').value;
+  const b     =DB.brands.find(x=>x.id===bId);
+  if(!b||!target)return;
+  const targetGram=unit==='kg'?target*1000:unit==='ton'?target*1e6:target;
+  const totalTmb  =b.recipe.tembakau.reduce((s,i)=>s+i.dose,0)||1;
+  const wb=XLSX.utils.book_new();
+
+  const rows=[
+    [`LEMBAR KERJA PRODUKSI: ${b.name.toUpperCase()}`],
+    [`Target: ${target} ${unit} = ${targetGram} gram | Tanggal: ${new Date().toLocaleDateString('id-ID',{dateStyle:'long'})}`],[],
+    ['TEMBAKAU (BLENDING)'],
+    ['No','Nama Bahan','Berat Standar (gram)','Proporsi (%)','Kebutuhan (gram)','Keterangan'],
+    ...b.recipe.tembakau.map((it,i)=>[i+1,it.name,it.dose,
+      (it.dose/totalTmb*100).toFixed(2),(targetGram*(it.dose/totalTmb)).toFixed(2),it.note||'']),
+    ['','TOTAL',totalTmb.toFixed(0),'100.00%',targetGram.toFixed(2),''],
+    [],
+    ['CASING'],
+    ['No','Nama Bahan','Dosis/100g','Satuan','Kebutuhan (gram)','Keterangan'],
+    ...b.recipe.casing.map((it,i)=>[i+1,it.name,it.dose,it.unit,
+      ((targetGram/100)*it.dose).toFixed(3),it.note||'']),
+    ['','TOTAL',b.recipe.casing.reduce((s,i)=>s+i.dose,0).toFixed(3),'',
+      b.recipe.casing.reduce((s,i)=>s+(targetGram/100)*i.dose,0).toFixed(3),''],
+    [],
+    ['TOP FLAVOUR'],
+    ['No','Nama Bahan','Dosis/100g','Satuan','Kebutuhan (gram)','Keterangan'],
+    ...b.recipe.top.map((it,i)=>[i+1,it.name,it.dose,it.unit,
+      ((targetGram/100)*it.dose).toFixed(3),it.note||'']),
+    ['','TOTAL',b.recipe.top.reduce((s,i)=>s+i.dose,0).toFixed(3),'',
+      b.recipe.top.reduce((s,i)=>s+(targetGram/100)*i.dose,0).toFixed(3),''],
+  ];
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:5},{wch:28},{wch:20},{wch:14},{wch:22},{wch:30}];
+  XLSX.utils.book_append_sheet(wb,ws,'Kalkulasi');
+
+  const r2=[
+    [`RESEP MASTER: ${b.name.toUpperCase()}`],['Basis: 100 gram tembakau'],[],
+    ['TEMBAKAU'],['Nama','Berat (gram)','Keterangan'],
+    ...b.recipe.tembakau.map(i=>[i.name,i.dose,i.note||'']),
+    [],['CASING'],['Nama','Dosis/100g','Satuan','Keterangan'],
+    ...b.recipe.casing.map(i=>[i.name,i.dose,i.unit,i.note||'']),
+    [],['TOP FLAVOUR'],['Nama','Dosis/100g','Satuan','Keterangan'],
+    ...b.recipe.top.map(i=>[i.name,i.dose,i.unit,i.note||'']),
+  ];
+  const ws2=XLSX.utils.aoa_to_sheet(r2);
+  ws2['!cols']=[{wch:28},{wch:16},{wch:10},{wch:30}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Resep Master');
+  XLSX.writeFile(wb,`TobaccoLab_${b.name.replace(/\s+/g,'_')}_${target}${unit}.xlsx`);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════════
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmt(n){ const v=parseFloat(n)||0; return v%1===0?String(parseInt(v)):v.toFixed(3).replace(/\.?0+$/,''); }
+function fmtNum(n){ return Number(n).toLocaleString('id-ID'); }
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded',()=>{
+  renderDashboard();
+  populateCalcBrands();
+  ['modal-brand','modal-ing','modal-confirm'].forEach(id=>{
+    document.getElementById(id).addEventListener('click',e=>{
+      if(e.target===e.currentTarget) closeModal(id);
+    });
+  });
+});
+</script>
+
+</body>
+</html>
